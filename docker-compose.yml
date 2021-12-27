@@ -65,7 +65,10 @@ x-sentry-defaults: &sentry_defaults
     SENTRY_EVENT_RETENTION_DAYS:
     SENTRY_MAIL_HOST:
   volumes:
-    - "sentry-data:/data"
+    - type: bind
+      read_only: false
+      source: ./sentry-data/
+      target: /data/
     - "./sentry:/etc/sentry"
     - "./geoip:/geoip:ro"
     - "./certificates:/usr/local/share/ca-certificates:ro"
@@ -111,7 +114,10 @@ services:
       <<: *healthcheck_defaults
       test: redis-cli ping
     volumes:
-      - "sentry-redis:/data"
+      - type: bind
+        read_only: false
+        source: ./sentry-redis/
+        target: /data/
     ulimits:
       nofile:
         soft: 10032
@@ -137,7 +143,10 @@ services:
       POSTGRES_HOST_AUTH_METHOD: "trust"
     entrypoint: /opt/sentry/postgres-entrypoint.sh
     volumes:
-      - "sentry-postgres:/var/lib/postgresql/data"
+      - type: bind
+        read_only: false
+        source: ./sentry-postgres/
+        target: /var/lib/postgresql/data/
       - type: bind
         read_only: true
         source: ./postgres/
@@ -152,7 +161,10 @@ services:
       ZOOKEEPER_TOOLS_LOG4J_LOGLEVEL: "WARN"
       KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok"
     volumes:
-      - "sentry-zookeeper:/var/lib/zookeeper/data"
+      - type: bind
+        read_only: false
+        source: ./sentry-zookeeper/
+        target: /var/lib/zookeeper/data/
       - "sentry-zookeeper-log:/var/lib/zookeeper/log"
       - "sentry-secrets:/etc/zookeeper/secrets"
     healthcheck:
@@ -178,7 +190,10 @@ services:
       KAFKA_LOG4J_ROOT_LOGLEVEL: "WARN"
       KAFKA_TOOLS_LOG4J_LOGLEVEL: "WARN"
     volumes:
-      - "sentry-kafka:/var/lib/kafka/data"
+      - type: bind
+        read_only: false
+        source: ./sentry-kafka/
+        target: /var/lib/kafka/data/
       - "sentry-kafka-log:/var/lib/kafka/log"
       - "sentry-secrets:/etc/kafka/secrets"
     healthcheck:
@@ -192,7 +207,10 @@ services:
         soft: 262144
         hard: 262144
     volumes:
-      - "sentry-clickhouse:/var/lib/clickhouse"
+      - type: bind
+        read_only: false
+        source: ./sentry-clickhouse/
+        target: /var/lib/clickhouse/
       - "sentry-clickhouse-log:/var/log/clickhouse-server"
       - type: bind
         read_only: true
@@ -270,7 +288,10 @@ services:
     <<: *restart_policy
     image: "$SYMBOLICATOR_IMAGE"
     volumes:
-      - "sentry-symbolicator:/data"
+      - type: bind
+        read_only: false
+        source: ./sentry-symbolicator/
+        target: /data/
       - type: bind
         read_only: true
         source: ./symbolicator
@@ -285,7 +306,10 @@ services:
         BASE_IMAGE: "$SYMBOLICATOR_IMAGE"
     command: '"55 23 * * * gosu symbolicator symbolicator cleanup"'
     volumes:
-      - "sentry-symbolicator:/data"
+      - type: bind
+        read_only: false
+        source: ./sentry-symbolicator/
+        target: /data/
   web:
     <<: *sentry_defaults
     healthcheck:
@@ -357,22 +381,6 @@ services:
       web:
         <<: *depends_on-healthy
 volumes:
-  # These store application data that should persist across restarts.
-  sentry-data:
-    external: true
-  sentry-postgres:
-    external: true
-  sentry-redis:
-    external: true
-  sentry-zookeeper:
-    external: true
-  sentry-kafka:
-    external: true
-  sentry-clickhouse:
-    external: true
-  sentry-symbolicator:
-    external: true
-
   # These store ephemeral data that needn't persist across restarts.
   sentry-secrets:
   sentry-smtp:
