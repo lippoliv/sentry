@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-source <(grep -v '^#' .env | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+_ENV="$(realpath .env)"
+t=$(mktemp) && export -p > "$t" && set -a && . ".env" && set +a && . "$t" && rm "$t" && unset t
 
 dc="docker-compose --no-ansi"
 dcr="$dc run --rm"
