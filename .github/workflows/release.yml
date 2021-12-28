@@ -14,7 +14,13 @@ jobs:
     steps:
         - id: calver
           if: ${{ !github.event.client_payload.version }}
-          run: echo "::set-output name=version::$(date +'%y.%-m.0')"
+          run: |
+            DATE_PART=$(date +'%y.%-m')
+            PATCH_VERSION=0
+            while curl -sf -o /dev/null "https://api.github.com/repos/$GITHUB_REPOSITORY/git/ref/tags/$DATE_PART.$PATCH_VERSION"; do
+              (( PATCH_VERSION++ ))
+            done
+            echo "::set-output name=version::$DATE_PART.$PATCH_VERSION"
         - uses: actions/checkout@v2
         - uses: getsentry/craft@master
           if: ${{ !github.event.client_payload.skip_prepare }}
@@ -26,6 +32,10 @@ jobs:
             GIT_COMMITTER_NAME: getsentry-bot
             GIT_AUTHOR_NAME: getsentry-bot
             EMAIL: bot@getsentry.com
+        # Wait until the builds start. Craft should do this automatically
+        # but it is broken now.
+        # TODO: Remove this once getsentry/craft#111 is fixed
+        - run: sleep 10
         - uses: getsentry/craft@master
           with:
             action: publish
