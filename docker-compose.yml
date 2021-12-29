@@ -384,6 +384,7 @@ services:
       - sentry
   nginx:
     <<: *restart_policy
+    hostname: sentry-lipperts-web-de
     image: "nginx:1.21.4-alpine"
     volumes:
       - type: bind
@@ -394,10 +395,8 @@ services:
       - web
       - relay
     networks:
-      nginx_net:
-        - aliases:
-            - sentry-lipperts-web-de
-      sentry:
+      - nginx_net
+      - sentry
   relay:
     <<: *restart_policy
     image: "$RELAY_IMAGE"
