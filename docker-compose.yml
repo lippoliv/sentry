@@ -280,8 +280,6 @@ services:
   nginx:
     << : *restart_policy
     hostname: sentry-lipperts-web-de
-    ports:
-      - '$SENTRY_BIND:80/tcp'
     image: 'nginx:1.16'
     volumes:
       - type: bind
