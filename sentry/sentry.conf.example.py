@@ -240,13 +240,16 @@ SENTRY_FEATURES.update(
             "organizations:discover",
             "organizations:events",
             "organizations:global-views",
+            "organizations:incidents",
             "organizations:integrations-issue-basic",
             "organizations:integrations-issue-sync",
             "organizations:invite-members",
+            "organizations:metric-alert-builder-aggregate",
             "organizations:sso-basic",
             "organizations:sso-rippling",
             "organizations:sso-saml2",
             "organizations:performance-view",
+            "organizations:advanced-search",
             "projects:custom-inbound-filters",
             "projects:data-forwarding",
             "projects:discard-groups",
@@ -257,9 +260,15 @@ SENTRY_FEATURES.update(
     }
 )
 
+#######################
+# MaxMind Integration #
+#######################
+
+GEOIP_PATH_MMDB = '/geoip/GeoLite2-City.mmdb'
+
 #########################
 # Bitbucket Integration #
-########################
+#########################
 
 # BITBUCKET_CONSUMER_KEY = 'YOUR_BITBUCKET_CONSUMER_KEY'
 # BITBUCKET_CONSUMER_SECRET = 'YOUR_BITBUCKET_CONSUMER_SECRET'

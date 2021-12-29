@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+if [[ -n "$MSYSTEM" ]]; then
+  echo "Seems like you are using an MSYS2-based system (such as Git Bash) which is not supported. Please use WSL instead.";
+  exit 1
+fi
+
 # Read .env for default values with a tip o' the hat to https://stackoverflow.com/a/59831605/90297
 t=$(mktemp) && export -p > "$t" && set -a && . ./.env && set +a && . "$t" && rm "$t" && unset t
 
@@ -15,6 +20,11 @@ MIN_DOCKER_VERSION='19.03.6'
 MIN_COMPOSE_VERSION='1.24.1'
 MIN_RAM=2400 # MB
 
+# Increase the default 10 second SIGTERM timeout
+# to ensure celery queues are properly drained
+# between upgrades as task signatures may change across
+# versions
+STOP_TIMEOUT=60 # seconds
 SENTRY_CONFIG_PY='sentry/sentry.conf.py'
 SENTRY_CONFIG_YML='sentry/config.yml'
 SYMBOLICATOR_CONFIG_YML='symbolicator/config.yml'
@@ -76,7 +86,7 @@ cleanup () {
   fi
 
   if [[ -z "$MINIMIZE_DOWNTIME" ]]; then
-    $dc stop &> /dev/null
+    $dc stop -t $STOP_TIMEOUT &> /dev/null
   fi
 }
 trap_with_arg cleanup ERR INT TERM EXIT
@@ -212,7 +222,7 @@ echo ""
 $dc pull -q --ignore-pull-failures 2>&1 | grep -v -- -onpremise-local || true
 
 # We may not have the set image on the repo (local images) so allow fails
-docker pull ${SENTRY_IMAGE}${SENTRY_PYTHON3:+-py3} || true;
+docker pull ${SENTRY_IMAGE}${SENTRY_PYTHON2:+-py2} || true;
 
 echo ""
 echo "Building and tagging Docker images..."
@@ -229,9 +239,9 @@ if [[ -n "$MINIMIZE_DOWNTIME" ]]; then
 else
   # Clean up old stuff and ensure nothing is working while we install/update
   # This is for older versions of on-premise:
-  $dc -p onpremise down --rmi local --remove-orphans
+  $dc -p onpremise down -t $STOP_TIMEOUT --rmi local --remove-orphans
   # This is for newer versions
-  $dc down --rmi local --remove-orphans
+  $dc down -t $STOP_TIMEOUT --rmi local --remove-orphans
 fi
 
 ZOOKEEPER_SNAPSHOT_FOLDER_EXISTS=$($dcr zookeeper bash -c 'ls 2>/dev/null -Ubad1 -- /var/lib/zookeeper/data/version-2 | wc -l | tr -d '[:space:]'')
@@ -319,6 +329,10 @@ if [[ ! -f "$RELAY_CREDENTIALS_JSON" ]]; then
   $dcr --no-deps -v $(pwd)/$RELAY_CONFIG_YML:/tmp/config.yml relay --config /tmp credentials generate --stdout > "$RELAY_CREDENTIALS_JSON"
   echo "Relay credentials written to $RELAY_CREDENTIALS_JSON"
 fi
+
+
+./install/geoip.sh
+
 
 if [[ "$MINIMIZE_DOWNTIME" ]]; then
   # Start the whole setup, except nginx and relay.
