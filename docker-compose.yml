@@ -393,6 +393,11 @@ services:
     depends_on:
       - web
       - relay
+    networks:
+      nginx_net:
+        - aliases:
+            - sentry-lipperts-web-de
+      sentry:
   relay:
     <<: *restart_policy
     image: "$RELAY_IMAGE"
