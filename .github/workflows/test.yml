@@ -1,46 +1,66 @@
-name: test
+name: Test
 on:
   # Run CI on all pushes to the master and release/** branches, and on all new
   # pull requests, and on all pushes to pull requests (even if a pull request
   # is not against master).
   push:
     branches:
-    - "master"
-    - "releases/**"
+      - "master"
+      - "release/**"
   pull_request:
-env:
-  DOCKER_COMPOSE_VERSION: 1.24.1
+defaults:
+  run:
+    shell: bash
 jobs:
-  test:
-    strategy:
-      matrix:
-        py2: ['', '1']
-    runs-on: ubuntu-18.04
-    name: "test${{ matrix.py2 == '1' && ' PY2' || ''}}"
+  unit-test:
+    runs-on: ubuntu-20.04
+    name: "unit tests"
     steps:
-      - name: Pin docker-compose
-        run: |
-          sudo rm /usr/local/bin/docker-compose
-          curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-          chmod +x docker-compose
-          sudo mv docker-compose /usr/local/bin
-
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Install and test
-        env:
-          COMPOSE_PARALLEL_LIMIT: 10
-          SENTRY_PYTHON2: ${{ matrix.py2 == '1' || '' }}
+      - name: Unit Tests
+        working-directory: install
+        run: find ./ -type f -name "*-test.sh" -exec "./{}" \;
+
+  integration-test:
+    runs-on: ubuntu-20.04
+    name: "integration test"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compose_version: '1.28.0'
+            compose_path: '/usr/local/bin'
+          - compose_version: 'v2.0.1'
+            compose_path: '/usr/local/lib/docker/cli-plugins'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Get Compose
         run: |
+          # Always remove `docker compose` support as that's the newer version
+          # and comes installed by default nowadays.
+          sudo rm -f "/usr/local/lib/docker/cli-plugins/docker-compose"
+          sudo rm -f "${{ matrix.compose_path }}/docker-compose"
+          sudo mkdir -p "${{ matrix.compose_path }}"
+          sudo curl -L https://github.com/docker/compose/releases/download/${{ matrix.compose_version }}/docker-compose-`uname -s`-`uname -m` -o "${{ matrix.compose_path }}/docker-compose"
+          sudo chmod +x "${{ matrix.compose_path }}/docker-compose"
+
+      - name: Integration Test
+        run: |
+          echo "Testing initial install"
           ./install.sh
-          ./test.sh
-          printf "Testing in-place upgrade"
+          ./_integration-test/run.sh
+          echo "Testing in-place upgrade"
+          # Also test plugin installation here
+          echo "sentry-auth-oidc" >> sentry/requirements.txt
           ./install.sh --minimize-downtime
-          ./test.sh
+          ./_integration-test/run.sh
 
       - name: Inspect failure
         if: failure()
         run: |
-          docker-compose ps
-          docker-compose logs
+          docker compose ps
+          docker compose logs

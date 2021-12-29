@@ -1,14 +1,10 @@
-#!/usr/bin/env bash
-
-if [ ! -f 'install.sh' ]; then echo 'Where are you?'; exit 1; fi
-
-dc="docker-compose --no-ansi"
-dcr="$dc run --rm"
-
+echo "${_group}Setting up GeoIP integration ..."
 
 install_geoip() {
-  local mmdb='geoip/GeoLite2-City.mmdb'
-  local conf='geoip/GeoIP.conf'
+  cd ../geoip
+
+  local mmdb='GeoLite2-City.mmdb'
+  local conf='GeoIP.conf'
   local result='Done'
 
   echo "Setting up IP address geolocation ..."
@@ -27,13 +23,16 @@ install_geoip() {
   else
     echo "IP address geolocation is configured for updates."
     echo "Updating IP address geolocation database ... "
-    $dcr geoipupdate
-    if [ $? -gt 0 ]; then
+    if ! $dcr geoipupdate; then
       result='Error'
     fi
     echo "$result updating IP address geolocation database."
   fi
   echo "$result setting up IP address geolocation."
+
+  cd ../install
 }
 
 install_geoip
+
+echo "${_endgroup}"
