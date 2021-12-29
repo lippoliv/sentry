@@ -101,14 +101,19 @@ function ensure_file_from_example {
   fi
 }
 
-if [[ "$(ver $DOCKER_VERSION)" -lt "$(ver $MIN_DOCKER_VERSION)" ]]; then
-  echo "FAIL: Expected minimum Docker version to be $MIN_DOCKER_VERSION but found $DOCKER_VERSION"
-  exit 1
-fi
+if docker compose version &>/dev/null; then
+  # If `docker compose` exists then it's guaranteed to be Docker Compose v2, which is good enough for us.
+  true
+else
+  if [[ "$(ver $DOCKER_VERSION)" -lt "$(ver $MIN_DOCKER_VERSION)" ]]; then
+    echo "FAIL: Expected minimum Docker version to be $MIN_DOCKER_VERSION but found $DOCKER_VERSION"
+    exit 1
+  fi
 
-if [[ "$(ver $COMPOSE_VERSION)" -lt "$(ver $MIN_COMPOSE_VERSION)" ]]; then
-  echo "FAIL: Expected minimum docker-compose version to be $MIN_COMPOSE_VERSION but found $COMPOSE_VERSION"
-  exit 1
+  if [[ "$(ver $COMPOSE_VERSION)" -lt "$(ver $MIN_COMPOSE_VERSION)" ]]; then
+    echo "FAIL: Expected minimum docker-compose version to be $MIN_COMPOSE_VERSION but found $COMPOSE_VERSION"
+    exit 1
+  fi
 fi
 
 if [[ "$RAM_AVAILABLE_IN_DOCKER" -lt "$MIN_RAM" ]]; then
