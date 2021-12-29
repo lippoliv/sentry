@@ -1,22 +1,33 @@
-name: test
+name: Test
 on:
   # Run CI on all pushes to the master and release/** branches, and on all new
   # pull requests, and on all pushes to pull requests (even if a pull request
   # is not against master).
   push:
     branches:
-    - "master"
-    - "releases/**"
+      - "master"
+      - "releases/**"
   pull_request:
 env:
   DOCKER_COMPOSE_VERSION: 1.24.1
+defaults:
+  run:
+    shell: bash
 jobs:
-  test:
-    strategy:
-      matrix:
-        py2: ['', '1']
+  unit-test:
     runs-on: ubuntu-18.04
-    name: "test${{ matrix.py2 == '1' && ' PY2' || ''}}"
+    name: "unit tests"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Unit Tests
+        working-directory: install
+        run: find ./ -type f -name "*-test.sh" -exec "./{}" \;
+
+  integration-test:
+    runs-on: ubuntu-18.04
+    name: "test"
     steps:
       - name: Pin docker-compose
         run: |
@@ -28,14 +39,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Install and test
-        env:
-          COMPOSE_PARALLEL_LIMIT: 10
-          SENTRY_PYTHON2: ${{ matrix.py2 == '1' || '' }}
+      - name: Integration Test
         run: |
+          echo "Testing initial install"
           ./install.sh
           ./test.sh
-          printf "Testing in-place upgrade"
+          echo "Testing in-place upgrade"
+          # Also test plugin installation here
+          echo "sentry-auth-oidc" >> sentry/requirements.txt
           ./install.sh --minimize-downtime
           ./test.sh
 
