@@ -66,6 +66,8 @@ services:
     volumes:
       - './mnt/sentry-smtp:/var/spool/exim4'
       - 'sentry-smtp-log:/var/log/exim4'
+    networks:
+      - sentry
   memcached:
     <<: *restart_policy
     image: "memcached:1.6.9-alpine"
@@ -73,6 +75,8 @@ services:
       <<: *healthcheck_defaults
       # From: https://stackoverflow.com/a/31877626/5155484
       test: echo stats | nc 127.0.0.1 11211
+    networks:
+      - sentry
   redis:
     <<: *restart_policy
     image: "redis:6.2.4-alpine"
@@ -85,6 +89,8 @@ services:
       nofile:
         soft: 10032
         hard: 10032
+    networks:
+      - sentry
   postgres:
     <<: *restart_policy
     image: "postgres:9.6"
@@ -113,6 +119,8 @@ services:
         read_only: true
         source: ./postgres/
         target: /opt/sentry/
+    networks:
+      - sentry
   zookeeper:
     <<: *restart_policy
     image: "confluentinc/cp-zookeeper:5.5.0"
@@ -126,6 +134,8 @@ services:
       - './mnt/sentry-zookeeper:/var/lib/zookeeper/data'
       - 'sentry-zookeeper-log:/var/lib/zookeeper/log'
       - 'sentry-secrets:/etc/zookeeper/secrets'
+    networks:
+      - sentry
     healthcheck:
       <<: *healthcheck_defaults
       test:
@@ -151,6 +161,8 @@ services:
       - './mnt/sentry-kafka:/var/lib/kafka/data'
       - 'sentry-kafka-log:/var/lib/kafka/log'
       - 'sentry-secrets:/etc/kafka/secrets'
+    networks:
+      - sentry
     healthcheck:
       <<: *healthcheck_defaults
       test: ["CMD-SHELL", "nc -z localhost 9092"]
@@ -173,6 +185,8 @@ services:
       # If you have high volume and your search return incomplete results
       # You might want to change this to a higher value (and ensure your host has enough memory)
       MAX_MEMORY_USAGE_RATIO: 0.3
+    networks:
+      - sentry
   geoipupdate:
     image: "maxmindinc/geoipupdate:v4.7.1"
     # Override the entrypoint in order to avoid using envvars for config.
@@ -181,36 +195,54 @@ services:
     entrypoint:
       ["/usr/bin/geoipupdate", "-d", "/sentry", "-f", "/sentry/GeoIP.conf"]
     volumes:
-      - "./geoip:/sentry"
+      - './geoip:/sentry'
+    networks:
+      - sentry
   snuba-api:
     <<: *snuba_defaults
+    networks:
+      - sentry
   # Kafka consumer responsible for feeding events into Clickhouse
   snuba-consumer:
     <<: *snuba_defaults
     command: consumer --storage errors --auto-offset-reset=latest --max-batch-time-ms 750
+    networks:
+      - sentry
   # Kafka consumer responsible for feeding outcomes into Clickhouse
   # Use --auto-offset-reset=earliest to recover up to 7 days of TSDB data
   # since we did not do a proper migration
   snuba-outcomes-consumer:
     <<: *snuba_defaults
     command: consumer --storage outcomes_raw --auto-offset-reset=earliest --max-batch-time-ms 750
+    networks:
+      - sentry
   # Kafka consumer responsible for feeding session data into Clickhouse
   snuba-sessions-consumer:
     <<: *snuba_defaults
     command: consumer --storage sessions_raw --auto-offset-reset=latest --max-batch-time-ms 750
+    networks:
+      - sentry
   # Kafka consumer responsible for feeding transactions data into Clickhouse
   snuba-transactions-consumer:
     <<: *snuba_defaults
     command: consumer --storage transactions --consumer-group transactions_group --auto-offset-reset=latest --max-batch-time-ms 750 --commit-log-topic=snuba-commit-log
+    networks:
+      - sentry
   snuba-replacer:
     <<: *snuba_defaults
     command: replacer --storage errors --auto-offset-reset=latest --max-batch-size 3
+    networks:
+      - sentry
   snuba-subscription-consumer-events:
     <<: *snuba_defaults
     command: subscriptions --auto-offset-reset=latest --consumer-group=snuba-events-subscriptions-consumers --topic=events --result-topic=events-subscription-results --dataset=events --commit-log-topic=snuba-commit-log --commit-log-group=snuba-consumers --delay-seconds=60 --schedule-ttl=60
+    networks:
+      - sentry
   snuba-subscription-consumer-transactions:
     <<: *snuba_defaults
     command: subscriptions --auto-offset-reset=latest --consumer-group=snuba-transactions-subscriptions-consumers --topic=events --result-topic=transactions-subscription-results --dataset=transactions --commit-log-topic=snuba-commit-log --commit-log-group=transactions_group --delay-seconds=60 --schedule-ttl=60
+    networks:
+      - sentry
   snuba-cleanup:
     <<: *snuba_defaults
     image: snuba-cleanup-onpremise-local
@@ -227,6 +259,8 @@ services:
       args:
         BASE_IMAGE: "$SNUBA_IMAGE"
     command: '"*/5 * * * * gosu snuba snuba cleanup --storage transactions --dry-run False"'
+    networks:
+      - sentry
   symbolicator:
     <<: *restart_policy
     image: "$SYMBOLICATOR_IMAGE"
@@ -237,6 +271,8 @@ services:
         source: ./symbolicator
         target: /etc/symbolicator
     command: run -c /etc/symbolicator/config.yml
+    networks:
+      - sentry
   symbolicator-cleanup:
     <<: *restart_policy
     image: symbolicator-cleanup-onpremise-local
@@ -247,27 +283,43 @@ services:
     command: '"55 23 * * * gosu symbolicator symbolicator cleanup"'
     volumes:
       - './mnt/sentry-symbolicator:/data'
+    networks:
+      - sentry
   web:
     <<: *sentry_defaults
+    networks:
+      - sentry
   cron:
     <<: *sentry_defaults
     command: run cron
+    networks:
+      - sentry
   worker:
     <<: *sentry_defaults
     command: run worker
+    networks:
+      - sentry
   ingest-consumer:
     <<: *sentry_defaults
     command: run ingest-consumer --all-consumer-types
+    networks:
+      - sentry
   post-process-forwarder:
     <<: *sentry_defaults
     # Increase `--commit-batch-size 1` below to deal with high-load environments.
     command: run post-process-forwarder --commit-batch-size 1
+    networks:
+      - sentry
   subscription-consumer-events:
     <<: *sentry_defaults
     command: run query-subscription-consumer --commit-batch-size 1 --topic events-subscription-results
+    networks:
+      - sentry
   subscription-consumer-transactions:
     <<: *sentry_defaults
     command: run query-subscription-consumer --commit-batch-size 1 --topic transactions-subscription-results
+    networks:
+      - sentry
   sentry-cleanup:
     <<: *sentry_defaults
     image: sentry-cleanup-onpremise-local
@@ -277,10 +329,13 @@ services:
         BASE_IMAGE: "$SENTRY_IMAGE"
     entrypoint: "/entrypoint.sh"
     command: '"0 0 * * * gosu sentry sentry cleanup --days $SENTRY_EVENT_RETENTION_DAYS"'
+    networks:
+      - sentry
   nginx:
     <<: *restart_policy
     ports:
       - "$SENTRY_BIND:80/tcp"
+    hostname: sentry-lipperts-web-de
     image: "nginx:1.21.0-alpine"
     volumes:
       - type: bind
@@ -290,6 +345,9 @@ services:
     depends_on:
       - web
       - relay
+    networks:
+      - nginx_net
+      - sentry
   relay:
     <<: *restart_policy
     image: "$RELAY_IMAGE"
@@ -306,6 +364,8 @@ services:
       - kafka
       - redis
       - web
+    networks:
+      - sentry
 volumes:
   sentry-secrets:
   sentry-smtp:
@@ -313,3 +373,8 @@ volumes:
   sentry-kafka-log:
   sentry-smtp-log:
   sentry-clickhouse-log:
+
+networks:
+  sentry:
+  nginx_net:
+    external: true
