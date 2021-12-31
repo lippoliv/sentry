@@ -335,8 +335,6 @@ services:
       - sentry
   nginx:
     <<: *restart_policy
-    ports:
-      - "$SENTRY_BIND:80/tcp"
     hostname: sentry-lipperts-web-de
     image: "nginx:1.21.0-alpine"
     volumes:
