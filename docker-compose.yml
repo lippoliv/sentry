@@ -165,12 +165,12 @@ services:
       - './mnt/sentry-zookeeper:/var/lib/zookeeper/data'
       - 'sentry-zookeeper-log:/var/lib/zookeeper/log'
       - 'sentry-secrets:/etc/zookeeper/secrets'
+    networks:
+      - sentry
     healthcheck:
       <<: *healthcheck_defaults
       test:
         ["CMD-SHELL", 'echo "ruok" | nc -w 2 -q 2 localhost 2181 | grep imok']
-    networks:
-      - sentry
   kafka:
     <<: *restart_policy
     depends_on:
@@ -193,11 +193,11 @@ services:
       - './mnt/sentry-kafka:/var/lib/kafka/data'
       - 'sentry-kafka-log:/var/lib/kafka/log'
       - 'sentry-secrets:/etc/kafka/secrets'
+    networks:
+      - sentry
     healthcheck:
       <<: *healthcheck_defaults
       test: ["CMD-SHELL", "nc -z localhost 9092"]
-    networks:
-      - sentry
   clickhouse:
     <<: *restart_policy
     image: "yandex/clickhouse-server:20.3.9.70"
